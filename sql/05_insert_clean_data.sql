@@ -10,14 +10,16 @@ Schema: clean
 This script:
 - reads from raw.raw_used_car_listings_aug_2025
 - inserts into clean.clean_used_car_listings_aug_2025
-- preserves raw messy values for auditability
-- creates clean analytical columns
+- preserves source values for auditability using source_* columns
+- creates clean analytical columns using clean_* columns
 - creates quality flags
 - keeps all rows and flags quality issues instead of deleting them
 
 Important:
 - cleaned_at is not inserted manually.
 - PostgreSQL fills cleaned_at automatically using DEFAULT NOW().
+- This script assumes the clean table is empty. Re-run 04_create_clean_table.sql
+  before re-running this script.
 ===============================================================================
 */
 
@@ -35,18 +37,18 @@ WITH base_data AS (
         source_file_name,
         loaded_at,
 
-        title,
-        company,
-        model,
-        color,
+        title AS source_title,
+        company AS source_company,
+        model AS source_model,
+        color AS source_color,
 
-        year AS raw_year,
-        price AS raw_price,
-        mileage AS raw_mileage,
-        location AS raw_location,
-        features AS raw_features,
-        transmission AS raw_transmission,
-        date_posted AS raw_date_posted,
+        year AS source_year,
+        price AS source_price,
+        mileage AS source_mileage,
+        location AS source_location,
+        features AS source_features,
+        transmission AS source_transmission,
+        date_posted AS source_date_posted,
 
         ROW_NUMBER() OVER (
             PARTITION BY detail_link
@@ -81,12 +83,12 @@ price_cleaning AS (
     SELECT
         *,
         CASE
-            WHEN raw_price IS NULL
-              OR UPPER(TRIM(raw_price)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_price IS NULL
+              OR UPPER(TRIM(source_price)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN NULL
             ELSE TRIM(
                 REPLACE(
-                    REPLACE(UPPER(TRIM(raw_price)), 'EGP', ''),
+                    REPLACE(UPPER(TRIM(source_price)), 'EGP', ''),
                     ',',
                     ''
                 )
@@ -103,7 +105,7 @@ price_numeric AS (
             WHEN cleaned_price_text ~ '^[0-9]+$'
                 THEN cleaned_price_text::NUMERIC
             ELSE NULL
-        END AS price_egp
+        END AS clean_price_egp
 
     FROM price_cleaning
 ),
@@ -116,9 +118,9 @@ price_flags AS (
                 THEN 'missing_price'
             WHEN cleaned_price_text !~ '^[0-9]+$'
                 THEN 'invalid_price_format'
-            WHEN price_egp < 50000
+            WHEN clean_price_egp < 50000
                 THEN 'suspicious_low_price'
-            WHEN price_egp > 20000000
+            WHEN clean_price_egp > 20000000
                 THEN 'suspicious_high_price'
             ELSE 'valid_price'
         END AS price_quality_flag
@@ -130,12 +132,12 @@ mileage_cleaning AS (
     SELECT
         *,
         CASE
-            WHEN raw_mileage IS NULL
-              OR UPPER(TRIM(raw_mileage)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_mileage IS NULL
+              OR UPPER(TRIM(source_mileage)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN NULL
             ELSE TRIM(
                 REPLACE(
-                    REPLACE(UPPER(TRIM(raw_mileage)), 'KM', ''),
+                    REPLACE(UPPER(TRIM(source_mileage)), 'KM', ''),
                     ',',
                     ''
                 )
@@ -152,7 +154,7 @@ mileage_numeric AS (
             WHEN cleaned_mileage_text ~ '^[0-9]+$'
                 THEN cleaned_mileage_text::NUMERIC
             ELSE NULL
-        END AS mileage_km
+        END AS clean_mileage_km
 
     FROM mileage_cleaning
 ),
@@ -165,11 +167,11 @@ mileage_flags AS (
                 THEN 'missing_mileage'
             WHEN cleaned_mileage_text !~ '^[0-9]+$'
                 THEN 'invalid_mileage_format'
-            WHEN mileage_km = 0
+            WHEN clean_mileage_km = 0
                 THEN 'zero_mileage'
-            WHEN mileage_km = 1
+            WHEN clean_mileage_km = 1
                 THEN 'one_km_mileage'
-            WHEN mileage_km > 500000
+            WHEN clean_mileage_km > 500000
                 THEN 'suspicious_high_mileage'
             ELSE 'valid_mileage'
         END AS mileage_quality_flag
@@ -181,8 +183,8 @@ year_numeric AS (
     SELECT
         *,
         CASE
-            WHEN TRIM(raw_year) ~ '^[0-9]+$'
-                THEN TRIM(raw_year)::SMALLINT
+            WHEN TRIM(source_year) ~ '^[0-9]+$'
+                THEN TRIM(source_year)::SMALLINT
             ELSE NULL
         END AS numeric_year
 
@@ -196,7 +198,7 @@ year_cleaning AS (
             WHEN numeric_year BETWEEN 1950 AND 2026
                 THEN numeric_year
             ELSE NULL
-        END AS manufacturing_year
+        END AS clean_manufacturing_year
 
     FROM year_numeric
 ),
@@ -205,9 +207,9 @@ year_flags AS (
     SELECT
         *,
         CASE
-            WHEN raw_year IS NULL
-              OR TRIM(raw_year) = ''
-              OR UPPER(TRIM(raw_year)) IN ('NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_year IS NULL
+              OR TRIM(source_year) = ''
+              OR UPPER(TRIM(source_year)) IN ('NA', 'N/A', 'UNKNOWN', '-')
                 THEN 'missing_year'
             WHEN numeric_year IS NULL
                 THEN 'invalid_year_format'
@@ -225,13 +227,13 @@ date_cleaning AS (
     SELECT
         *,
         CASE
-            WHEN raw_date_posted IS NULL
-              OR UPPER(TRIM(raw_date_posted)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_date_posted IS NULL
+              OR UPPER(TRIM(source_date_posted)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN NULL
-            WHEN TRIM(raw_date_posted) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                THEN TRIM(raw_date_posted)::DATE
+            WHEN TRIM(source_date_posted) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                THEN TRIM(source_date_posted)::DATE
             ELSE NULL
-        END AS date_posted
+        END AS clean_date_posted
 
     FROM year_flags
 ),
@@ -240,10 +242,10 @@ date_flags AS (
     SELECT
         *,
         CASE
-            WHEN raw_date_posted IS NULL
-              OR UPPER(TRIM(raw_date_posted)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_date_posted IS NULL
+              OR UPPER(TRIM(source_date_posted)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN 'missing_date'
-            WHEN date_posted IS NULL
+            WHEN clean_date_posted IS NULL
                 THEN 'invalid_date_format'
             ELSE 'valid_date'
         END AS date_quality_flag
@@ -255,12 +257,12 @@ location_cleaning AS (
     SELECT
         *,
         CASE
-            WHEN raw_location IS NULL
-              OR UPPER(TRIM(raw_location)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_location IS NULL
+              OR UPPER(TRIM(source_location)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN NULL
-            WHEN title ILIKE '%' || TRIM(raw_location) || '%'
+            WHEN source_title ILIKE '%' || TRIM(source_location) || '%'
                 THEN NULL
-            ELSE TRIM(raw_location)
+            ELSE TRIM(source_location)
         END AS clean_location
 
     FROM date_flags
@@ -270,10 +272,10 @@ location_flags AS (
     SELECT
         *,
         CASE
-            WHEN raw_location IS NULL
-              OR UPPER(TRIM(raw_location)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
+            WHEN source_location IS NULL
+              OR UPPER(TRIM(source_location)) IN ('', 'NA', 'N/A', 'UNKNOWN', '-')
                 THEN 'missing_location'
-            WHEN title ILIKE '%' || TRIM(raw_location) || '%'
+            WHEN source_title ILIKE '%' || TRIM(source_location) || '%'
                 THEN 'likely_model_in_location'
             ELSE 'valid_location'
         END AS location_quality_flag
@@ -304,24 +306,24 @@ INSERT INTO clean.clean_used_car_listings_aug_2025 (
     source_file_name,
     loaded_at,
 
-    title,
-    company,
-    model,
-    color,
+    source_title,
+    source_company,
+    source_model,
+    source_color,
 
-    raw_year,
-    raw_price,
-    raw_mileage,
-    raw_location,
-    raw_features,
-    raw_transmission,
-    raw_date_posted,
+    source_year,
+    source_price,
+    source_mileage,
+    source_location,
+    source_features,
+    source_transmission,
+    source_date_posted,
 
-    manufacturing_year,
-    price_egp,
-    mileage_km,
+    clean_manufacturing_year,
+    clean_price_egp,
+    clean_mileage_km,
     clean_location,
-    date_posted,
+    clean_date_posted,
 
     year_quality_flag,
     price_quality_flag,
@@ -337,24 +339,24 @@ SELECT
     source_file_name,
     loaded_at,
 
-    title,
-    company,
-    model,
-    color,
+    source_title,
+    source_company,
+    source_model,
+    source_color,
 
-    raw_year,
-    raw_price,
-    raw_mileage,
-    raw_location,
-    raw_features,
-    raw_transmission,
-    raw_date_posted,
+    source_year,
+    source_price,
+    source_mileage,
+    source_location,
+    source_features,
+    source_transmission,
+    source_date_posted,
 
-    manufacturing_year,
-    price_egp,
-    mileage_km,
+    clean_manufacturing_year,
+    clean_price_egp,
+    clean_mileage_km,
     clean_location,
-    date_posted,
+    clean_date_posted,
 
     year_quality_flag,
     price_quality_flag,

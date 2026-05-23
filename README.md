@@ -1,57 +1,26 @@
 # Egypt Used Cars Market Analysis
 
-This project analyzes used-car listings in the Egyptian market to understand how listed prices vary by manufacturing year, mileage, budget segment, and common company/model combinations.
+This project analyzes used-car listings in the Egyptian market to understand how listed prices vary by manufacturing year, mileage, budget segment, location, and common company/model combinations.
 
-The goal is to turn raw marketplace listings into practical insights for buyers and sellers using SQL, data quality checks, and a clean analysis-ready table.
+The goal is to transform raw used-car marketplace listings into reliable, analysis-ready data, answer buyer and seller business questions using SQL, and prepare a reporting-ready model for an interactive Power BI dashboard.
 
 > **Important limitation:** this project analyzes listed asking prices, not confirmed sold prices.
 
-## Project Workflow Diagram
+## SQL Data Preparation Workflow
 
 ![Egypt Used Cars Market Analysis Workflow](assets/egypt_used_cars_market_analysis_workflow.gif)
 
-## Workflow
+## Analysis Star Schema
 
-```text
-Raw CSV
-→ Load to staging table
-→ Add metadata and preserve raw records
-→ Build raw table
-→ Apply SQL transformation + quality flags
-→ Build clean analysis table
-→ Run analysis queries
-→ Document findings
-```
-
-The current SQL phase uses two main database schemas:
-
-```text
-raw    → preserves source data
-clean  → stores cleaned analytical fields and quality flags
-```
-
-> An analysis schema is reserved for the next phase, where the clean table can be modeled into reporting-ready tables or views for Power BI.
-
----
+![Egypt Used Cars Market Analysis Star Schema](assets/egypt_used_cars_market_analysis_star_schema.png)
 
 ## Project Roadmap
 
-- [x] Phase 1 — SQL Analysis: data cleaning, quality flags, validation, and business analysis
-- [ ] Phase 2 — Data Modeling: dimensional model for reporting layer
-- [ ] Phase 3 — Power BI: interactive dashboard for buyers and sellers
+- [x] Phase 1 — SQL analysis: raw import, data quality checks, clean layer, validation, and business analysis
+- [x] Phase 2 — Data modeling: reporting-ready star schema in the `analysis` schema
+- [ ] Phase 3 — Power BI dashboard: interactive buyer and seller views
 
-## Project Objectives
 
-This project answers questions such as:
-
-- How does manufacturing year affect listed price?
-- How does mileage affect listed price?
-- What options are available within different buyer budget segments?
-- Which company/model combinations appear most often in each budget segment?
-- How can sellers benchmark their asking price against similar listings?
-- How can sellers choose a pricing position depending on urgency?
-
----
 
 ## Dataset
 
@@ -61,8 +30,6 @@ The dataset contains used-car listings from the Egyptian market and is available
 
 Each row represents one listed car and includes fields such as company, model, manufacturing year, mileage, listed price, color, transmission, location, features, and listing/detail link.
 
----
-
 ## Tools Used
 
 - PostgreSQL
@@ -71,56 +38,53 @@ Each row represents one listed car and includes fields such as company, model, m
 - Git / GitHub
 - Excel
 
----
-
-## Key Data Quality Decisions
-
-| Area         | Issue Found                                                   | Handling                                           |
-| ------------ | ------------------------------------------------------------- | -------------------------------------------------- |
-| Price        | Text values with commas and `EGP`; suspicious low/high prices | Converted to numeric and flagged                   |
-| Mileage      | Text values with `Km`; missing and suspicious values          | Converted to numeric and flagged                   |
-| Year         | Unrealistic years such as very old or future values           | Valid years converted; invalid years flagged       |
-| Duplicates   | Repeated `detail_link` values                                 | Kept records and added duplicate flags             |
-| Location     | Some suspicious values looked like car names                  | Flagged and excluded from broad analysis           |
-| Transmission | Very low coverage                                             | Kept for traceability, excluded from main analysis |
-
----
-
 ## Key Findings
 
-### 1. Sellers can benchmark asking prices using quartile-based pricing zones
+### 1. Manufacturing year and mileage category provide useful listed-price benchmarks
 
-- The project creates seller benchmarks by comparing similar listings using company, model, manufacturing year, and mileage category.
+Listed-price benchmarks vary clearly across manufacturing year and mileage category. Newer cars and lower-mileage groups generally show higher median listed prices, while older and higher-mileage groups generally show lower benchmarks.
 
-- Q1 to Q3 defines the normal competitive range, while IQR-based boundaries help flag unusually low or high listings.
+Groups with fewer than five listings were excluded from the official benchmark output to avoid weak comparisons based on very small samples.
 
-### 2. Each buyer budget segment has a distinct set of common company/model options
+### 2. Budget segments reveal realistic company/model options for buyers
 
-- Buyers can identify realistic options within their budget segment instead of only looking at a price ceiling.
+Each budget segment has a distinct set of common company/model combinations. This helps buyers understand realistic market options instead of relying only on price ranges.
 
-- Lower budget segments are dominated by older, higher-mileage economy cars, while higher budget segments include newer and more expensive company/model combinations.
+Examples include Daewoo Lanos and Daewoo Nubira in the very-low budget segment, Nissan Sunny and Chevrolet Optra in the low-budget segment, Hyundai Elantra and Mitsubishi Lancer in the mid-budget segment, and Mercedes C/E models in the premium segment.
 
-### 3. The low-budget segment has the highest listing count
+### 3. Selected-car benchmarks can support buyer and seller pricing decisions
 
-- The low-budget segment contains **7,164 analysis-ready listings**, making it the most available and competitive segment in the dataset.
+For selected comparable listings, the project calculates quartile-based listed-price benchmarks using company, model, manufacturing year, and mileage category.
 
-- This matters for both buyers and sellers: buyers have more options to compare, while sellers face more competition.
+For example, Nissan Sunny 2014 with moderate mileage had 14 comparable listings, with a median listed price of 452,500 EGP and an observed comparable range from 400,000 to 560,000 EGP.
 
-### 4. Manufacturing year and mileage both affect listed price, but neither explains price alone
+The pricing guide translates these benchmarks into buyer/seller zones such as aggressive pricing, competitive-normal pricing, upper-normal pricing, and premium/patient pricing.
 
-- Newer cars and lower-mileage cars generally have higher listed prices.
+### 4. Feature analysis shows what is common within comparable listings
 
-- However, wide price gaps within the same manufacturing year show that company, model, mileage, condition, trim, and outlier listings also strongly influence price.
+The feature bridge table supports analysis of common features within a selected comparable group.
 
-### 5. Data quality issues were handled with flags instead of silent deletion
+For Nissan Sunny 2014 with moderate mileage, Automatic appeared in 71.43% of comparable listings, while Air Conditioner and Remote Control each appeared in 35.71%. This helps buyers understand which features are commonly available within a specific comparable group.
 
-- The raw dataset contained missing values, invalid years, suspicious prices, suspicious mileage values, and duplicate listing links.
+### 5. Location analysis highlights differences in availability and listed-price benchmarks
 
-- Instead of deleting these rows immediately, the clean layer preserved them and added quality flags.
+Listing availability differs strongly by location. Cairo had the highest number of analysis-ready listings, followed by Tagamo3 - New Cairo, 6 October, Alexandria, and Nasr city.
 
-- This keeps the analysis consistent, auditable, and transparent.
+Location-level benchmarks include listing count, minimum listed price, average listed price, median listed price, maximum listed price, median mileage, and median manufacturing year. Locations with fewer than 20 listings were excluded from the official benchmark output to avoid weak comparisons.
 
----
+### 6. Data quality handling supports trust in the findings
+
+The analysis is based on an analysis-ready dataset of 22,423 listings. Raw data issues such as invalid years, suspicious prices, suspicious mileage values, duplicate listing links, and suspicious locations were handled through quality flags rather than silent deletion.
+
+This keeps the analysis auditable and makes the limitations visible.
+
+## Result Screenshots
+
+Screenshots of the final SQL query outputs are stored in `assets/query_outputs/`
+
+## Detailed Documentation
+
+This README summarizes the main project workflow, findings, and outputs. Detailed design decisions, validation checks, data quality findings, star schema design, and analysis interpretation are documented in the `docs/` folder.
 
 ## Project Files
 
@@ -128,28 +92,32 @@ Each row represents one listed car and includes fields such as company, model, m
 
 Run these files in order to reproduce the database workflow.
 
-| Order | File                                 | Purpose                                   |
-| ----: | ------------------------------------ | ----------------------------------------- |
-|     1 | `sql/00_database_setup.sql`          | Create the database and schemas           |
-|     2 | `sql/01_create_raw_table.sql`        | Create the raw table                      |
-|     3 | `sql/02_import_raw_data.sql`         | Import the CSV into PostgreSQL            |
-|     4 | `sql/03_raw_data_quality_checks.sql` | Profile raw data quality issues           |
-|     5 | `sql/04_create_clean_table.sql`      | Create the clean analysis table           |
-|     6 | `sql/05_insert_clean_data.sql`       | Insert, clean, flag, and validate records |
-|     7 | `sql/06_analysis_questions.sql`      | Answer the business analysis questions    |
+| Order | File | Purpose |
+|---:|---|---|
+| 1 | `sql/00_database_setup.sql` | Create the database and schemas |
+| 2 | `sql/01_create_raw_table.sql` | Create the raw landing table |
+| 3 | `sql/02_import_raw_data.sql` | Import the CSV into PostgreSQL |
+| 4 | `sql/03_raw_data_quality_checks.sql` | Profile raw data quality issues |
+| 5 | `sql/04_create_clean_table.sql` | Create the clean analysis table |
+| 6 | `sql/05_insert_clean_data.sql` | Insert, clean, flag, and validate records |
+| 7 | `sql/06_analysis_questions.sql` | Answer business questions from the clean layer |
+| 8 | `sql/07_create_star_schema.sql` | Create the analysis/reporting star schema |
+| 9 | `sql/08_insert_star_schema.sql` | Populate the star schema from the clean layer |
+| 10 | `sql/09_star_schema_analysis_questions.sql` | Validate and query the star schema |
 
 ### Documentation
 
 Read these files in order to understand the project decisions and findings.
 
-| Order | File                                                    | Purpose                                    |
-| ----: | ------------------------------------------------------- | ------------------------------------------ |
-|     1 | `docs/00_project_framework.md`                          | Project workflow and methodology           |
-|     2 | `docs/01_project_brief.md`                              | Business goal, audience, and scope         |
-|     3 | `docs/02_raw_data_audit.md`                             | Initial inspection of the raw dataset      |
-|     4 | `docs/03_raw_table_design.md`                           | Raw table design and import strategy       |
-|     5 | `docs/04_raw_data_quality_checks_plan.md`               | Planned raw data quality checks            |
-|     6 | `docs/05_raw_data_quality_findings.md`                  | Raw data quality results                   |
-|     7 | `docs/06_clean_layer_design.md`                         | Clean table design and quality-flag logic  |
-|     8 | `docs/07_clean_data_validation_findings.md`             | Clean table validation results             |
-|     9 | `docs/08_analysis_findings.md`                          | Final business findings and interpretation |
+| Order | File | Purpose |
+|---:|---|---|
+| 1 | `docs/00_project_framework.md` | Project workflow and methodology |
+| 2 | `docs/01_project_brief.md` | Business goal, audience, and scope |
+| 3 | `docs/02_raw_data_audit.md` | Initial inspection of the raw dataset |
+| 4 | `docs/03_raw_table_design.md` | Raw table design and import strategy |
+| 5 | `docs/04_raw_data_quality_checks_plan.md` | Planned raw data quality checks |
+| 6 | `docs/05_raw_data_quality_findings.md` | Raw data quality results |
+| 7 | `docs/06_clean_layer_design.md` | Clean table design and quality-flag logic |
+| 8 | `docs/07_clean_data_validation_findings.md` | Clean table validation results |
+| 9 | `docs/08_star_schema_design.md` | Reporting model/star schema design |
+| 10 | `docs/09_analysis_findings.md` | Business findings and interpretation |

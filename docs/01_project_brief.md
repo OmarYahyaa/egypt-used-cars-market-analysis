@@ -2,67 +2,54 @@
 
 ## Project Title
 
-**Egypt Used Cars Market Analysis: Finding Affordable Options by Budget and Needs**
+Egypt Used Cars Market Insights
 
 ## Project Goal
 
-The goal of this project is to help used-car buyers in Egypt understand the used-car market by analyzing how listed prices vary by manufacturing year, mileage, budget segment, and common company/model combinations.
+The goal of this project is to analyze Egypt used-car listings and produce practical insights for buyers and sellers.
 
-The project also supports sellers by creating benchmark ranges for similar listed cars and turning those benchmarks into practical pricing zones.
+The project helps:
 
-## Why This Dataset?
-
-- Buying a car is a major financial decision, especially for buyers with limited budgets.
-- Used cars are often more affordable than new cars.
-- Used cars can be attractive for new drivers who want a lower-cost first car.
-- The same analysis can also help sellers understand listed price ranges for similar cars in the market.
+- buyers understand realistic options within different budget segments,
+- sellers benchmark asking prices against comparable listings,
+- reviewers see a full SQL analytics workflow from raw data to reporting-ready modeling.
 
 ## Target Audience
 
-### Primary Audience
-
-- Used-car buyers in Egypt with a limited budget.
-
-### Secondary Audience
-
-- Car sellers who want to understand listed market prices for similar cars.
+| Audience | Need |
+|---|---|
+| Buyers | Understand realistic price ranges, common models, and tradeoffs by budget |
+| Sellers | Benchmark asking price against similar listings |
+| Portfolio reviewers | Evaluate SQL, data quality, modeling, and communication skills |
 
 ## Business Questions
 
-1. How does listed price vary by manufacturing year?
-2. How does listed price vary by mileage category?
-3. What used-car options are available within different buyer budget segments?
-4. Which company/model combinations appear most often within each budget segment?
-5. How can sellers benchmark their asking price against similar listed cars?
-6. How can sellers choose a pricing position depending on urgency?
+1. How do manufacturing year and mileage category relate to listed-price benchmarks?
+2. Which company/model combinations are common in each budget segment?
+3. What is a fair listed-price benchmark for a selected car?
+4. Which features are common for selected comparable listings?
+5. How do listing counts and price benchmarks differ by location?
 
-## Tools
+## Scope
 
-- PostgreSQL
-- pgAdmin
-- Excel
-- GitHub
-- Markdown
-- Notepad++
+Included:
 
-## What This Project Should Prove
+- PostgreSQL database setup
+- raw table design
+- raw data quality profiling
+- clean table transformation
+- validation checks
+- SQL business analysis
+- star schema modeling
+- GitHub documentation
 
-- I can document a data project clearly and professionally.
-- I can inspect, clean, and prepare messy real-world data.
-- I can make analysis decisions based on data quality, project scope, and business questions.
-- I can translate stakeholder questions into SQL-based analysis.
-- I can create buyer-focused and seller-focused analytical outputs.
-- I can structure a SQL-first portfolio project with a clear business purpose.
+Not included in the current release:
 
-## Version 1 Scope Exclusions
+- machine learning price prediction
+- automated scraping pipeline
+- confirmed sold-price analysis
+- Power BI dashboard implementation
 
-Version 1 focuses on SQL-based data inspection, raw table design, data cleaning, and business analysis.
+## Main Limitation
 
-This version does not include:
-
-- Python
-- Power BI dashboarding
-- Data scraping automation
-- Machine learning
-
-Power BI is planned as a later project phase after the SQL portfolio phase is complete.
+The project uses listed asking prices, not confirmed sold prices. Therefore, the findings should be interpreted as listing-market benchmarks, not guaranteed market valuations.

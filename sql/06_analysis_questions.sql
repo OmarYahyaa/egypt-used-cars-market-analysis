@@ -1,4 +1,3 @@
-
 /*
 ===============================================================================
 06_analysis_questions.sql
@@ -6,7 +5,8 @@ Egypt Used Cars Market Analysis
 ===============================================================================
 
 Purpose:
-Answer the core business questions of the Egypt used cars market using the cleaned layer.
+Answer the core business questions of the Egypt used cars market using the
+refactored clean layer.
 
 Default table:
 clean.clean_used_car_listings_aug_2025
@@ -14,6 +14,10 @@ clean.clean_used_car_listings_aug_2025
 Default analysis filter:
 WHERE is_analysis_ready = TRUE
 
+Clean layer naming convention:
+- source_* columns preserve original source values.
+- clean_* columns store typed analytical values.
+===============================================================================
 */
 
 
@@ -24,17 +28,17 @@ Q1. Listed price by manufacturing year
 */
 
 SELECT
-    manufacturing_year,
+    clean_manufacturing_year AS manufacturing_year,
     COUNT(*) AS number_of_listings,
-    MIN(price_egp) AS minimum_listed_price,
-    TRUNC(AVG(price_egp)) AS average_listed_price,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-    MAX(price_egp) AS maximum_listed_price,
-    MAX(price_egp) - MIN(price_egp) AS price_gap
+    MIN(clean_price_egp) AS minimum_listed_price,
+    TRUNC(AVG(clean_price_egp)) AS average_listed_price,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+    MAX(clean_price_egp) AS maximum_listed_price,
+    MAX(clean_price_egp) - MIN(clean_price_egp) AS price_gap
 FROM clean.clean_used_car_listings_aug_2025
 WHERE is_analysis_ready = TRUE
-GROUP BY manufacturing_year
-ORDER BY manufacturing_year;
+GROUP BY clean_manufacturing_year
+ORDER BY clean_manufacturing_year;
 
 
 /*
@@ -46,18 +50,19 @@ Q2. Listed price by mileage category
 WITH mileage_segments AS (
     SELECT
         CASE
-            WHEN mileage_km < 50000 THEN 'Low mileage'
-            WHEN mileage_km >= 50000 AND mileage_km < 150000 THEN 'Moderate mileage'
+            WHEN clean_mileage_km < 50000 THEN 'Low mileage'
+            WHEN clean_mileage_km >= 50000 AND clean_mileage_km < 150000 THEN 'Moderate mileage'
             ELSE 'High mileage'
         END AS mileage_category,
         CASE
-            WHEN mileage_km < 50000 THEN 1
-            WHEN mileage_km >= 50000 AND mileage_km < 150000 THEN 2
+            /* Enforce report ordering with our desired business order. */
+            WHEN clean_mileage_km < 50000 THEN 1
+            WHEN clean_mileage_km >= 50000 AND clean_mileage_km < 150000 THEN 2
             ELSE 3
         END AS mileage_category_order,
-        price_egp,
-        mileage_km,
-        manufacturing_year
+        clean_price_egp,
+        clean_mileage_km,
+        clean_manufacturing_year
     FROM clean.clean_used_car_listings_aug_2025
     WHERE is_analysis_ready = TRUE
 )
@@ -65,12 +70,12 @@ WITH mileage_segments AS (
 SELECT
     mileage_category,
     COUNT(*) AS number_of_listings,
-    MIN(price_egp) AS minimum_listed_price,
-    TRUNC(AVG(price_egp)) AS average_listed_price,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-    MAX(price_egp) AS maximum_listed_price,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY mileage_km) AS median_mileage_km,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY manufacturing_year) AS median_manufacturing_year
+    MIN(clean_price_egp) AS minimum_listed_price,
+    TRUNC(AVG(clean_price_egp)) AS average_listed_price,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+    MAX(clean_price_egp) AS maximum_listed_price,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_mileage_km) AS median_mileage_km,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_manufacturing_year) AS median_manufacturing_year
 FROM mileage_segments
 GROUP BY mileage_category, mileage_category_order
 ORDER BY mileage_category_order;
@@ -84,23 +89,23 @@ Q3. Budget segment summary
 
 WITH budget_segments AS (
     SELECT
-        company,
-        model,
-        price_egp,
-        mileage_km,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_price_egp,
+        clean_mileage_km,
+        clean_manufacturing_year,
         CASE
-            WHEN price_egp < 300000 THEN 'Very low budget'
-            WHEN price_egp >= 300000 AND price_egp < 600000 THEN 'Low budget'
-            WHEN price_egp >= 600000 AND price_egp < 1000000 THEN 'Mid budget'
-            WHEN price_egp >= 1000000 AND price_egp < 2000000 THEN 'High budget'
+            WHEN clean_price_egp < 300000 THEN 'Very low budget'
+            WHEN clean_price_egp >= 300000 AND clean_price_egp < 600000 THEN 'Low budget'
+            WHEN clean_price_egp >= 600000 AND clean_price_egp < 1000000 THEN 'Mid budget'
+            WHEN clean_price_egp >= 1000000 AND clean_price_egp < 2000000 THEN 'High budget'
             ELSE 'Premium budget'
         END AS budget_segment,
         CASE
-            WHEN price_egp < 300000 THEN 1
-            WHEN price_egp >= 300000 AND price_egp < 600000 THEN 2
-            WHEN price_egp >= 600000 AND price_egp < 1000000 THEN 3
-            WHEN price_egp >= 1000000 AND price_egp < 2000000 THEN 4
+            WHEN clean_price_egp < 300000 THEN 1
+            WHEN clean_price_egp >= 300000 AND clean_price_egp < 600000 THEN 2
+            WHEN clean_price_egp >= 600000 AND clean_price_egp < 1000000 THEN 3
+            WHEN clean_price_egp >= 1000000 AND clean_price_egp < 2000000 THEN 4
             ELSE 5
         END AS budget_segment_order
     FROM clean.clean_used_car_listings_aug_2025
@@ -110,14 +115,22 @@ WITH budget_segments AS (
 SELECT
     budget_segment,
     COUNT(*) AS number_of_listings,
-    MIN(price_egp) AS minimum_listed_price,
-    TRUNC(AVG(price_egp)) AS average_listed_price,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-    MAX(price_egp) AS maximum_listed_price,
-    ROUND(((MAX(price_egp) - PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp)) * 100.0 / PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp))::NUMERIC, 2) AS upside_from_median_pct,
-    ROUND(((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) - MIN(price_egp)) * 100.0 / PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp))::NUMERIC, 2) AS downside_from_median_pct,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY mileage_km) AS median_mileage_km,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY manufacturing_year) AS median_manufacturing_year
+    MIN(clean_price_egp) AS minimum_listed_price,
+    TRUNC(AVG(clean_price_egp)) AS average_listed_price,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+    MAX(clean_price_egp) AS maximum_listed_price,
+    ROUND(
+        ((MAX(clean_price_egp) - PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp))
+        * 100.0 / PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp))::NUMERIC,
+        2
+    ) AS upside_from_median_pct,
+    ROUND(
+        ((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) - MIN(clean_price_egp))
+        * 100.0 / PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp))::NUMERIC,
+        2
+    ) AS downside_from_median_pct,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_mileage_km) AS median_mileage_km,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_manufacturing_year) AS median_manufacturing_year
 FROM budget_segments
 GROUP BY budget_segment, budget_segment_order
 ORDER BY budget_segment_order;
@@ -131,23 +144,23 @@ Q3B. Top company/model combinations within each budget segment
 
 WITH budget_segments AS (
     SELECT
-        company,
-        model,
-        price_egp,
-        mileage_km,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_price_egp,
+        clean_mileage_km,
+        clean_manufacturing_year,
         CASE
-            WHEN price_egp < 300000 THEN 'Very low budget'
-            WHEN price_egp >= 300000 AND price_egp < 600000 THEN 'Low budget'
-            WHEN price_egp >= 600000 AND price_egp < 1000000 THEN 'Mid budget'
-            WHEN price_egp >= 1000000 AND price_egp < 2000000 THEN 'High budget'
+            WHEN clean_price_egp < 300000 THEN 'Very low budget'
+            WHEN clean_price_egp >= 300000 AND clean_price_egp < 600000 THEN 'Low budget'
+            WHEN clean_price_egp >= 600000 AND clean_price_egp < 1000000 THEN 'Mid budget'
+            WHEN clean_price_egp >= 1000000 AND clean_price_egp < 2000000 THEN 'High budget'
             ELSE 'Premium budget'
         END AS budget_segment,
         CASE
-            WHEN price_egp < 300000 THEN 1
-            WHEN price_egp >= 300000 AND price_egp < 600000 THEN 2
-            WHEN price_egp >= 600000 AND price_egp < 1000000 THEN 3
-            WHEN price_egp >= 1000000 AND price_egp < 2000000 THEN 4
+            WHEN clean_price_egp < 300000 THEN 1
+            WHEN clean_price_egp >= 300000 AND clean_price_egp < 600000 THEN 2
+            WHEN clean_price_egp >= 600000 AND clean_price_egp < 1000000 THEN 3
+            WHEN clean_price_egp >= 1000000 AND clean_price_egp < 2000000 THEN 4
             ELSE 5
         END AS budget_segment_order
     FROM clean.clean_used_car_listings_aug_2025
@@ -157,31 +170,31 @@ company_model_summary AS (
     SELECT
         budget_segment,
         budget_segment_order,
-        company,
-        model,
+        source_company,
+        source_model,
         COUNT(*) AS number_of_listings,
-        MIN(price_egp) AS minimum_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-        MAX(price_egp) AS maximum_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY mileage_km) AS median_mileage_km,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY manufacturing_year) AS median_manufacturing_year
+        MIN(clean_price_egp) AS minimum_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+        MAX(clean_price_egp) AS maximum_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_mileage_km) AS median_mileage_km,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_manufacturing_year) AS median_manufacturing_year
     FROM budget_segments
-    GROUP BY budget_segment, budget_segment_order, company, model
+    GROUP BY budget_segment, budget_segment_order, source_company, source_model
 ),
 ranked_models AS (
     SELECT
         *,
         ROW_NUMBER() OVER (
             PARTITION BY budget_segment
-            ORDER BY number_of_listings DESC, company, model
+            ORDER BY number_of_listings DESC, source_company, source_model
         ) AS rank_in_budget_segment
     FROM company_model_summary
 )
 
 SELECT
     budget_segment,
-    company,
-    model,
+    source_company AS company,
+    source_model AS model,
     number_of_listings,
     minimum_listed_price,
     median_listed_price,
@@ -202,25 +215,24 @@ Q4. Seller benchmark by similar company, model, year, and mileage category
 
 WITH similar_car_benchmarks_step1 AS (
     SELECT
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         CASE
-            WHEN mileage_km < 50000 THEN 'Low mileage'
-            WHEN mileage_km >= 50000 AND mileage_km < 150000 THEN 'Moderate mileage'
+            WHEN clean_mileage_km < 50000 THEN 'Low mileage'
+            WHEN clean_mileage_km >= 50000 AND clean_mileage_km < 150000 THEN 'Moderate mileage'
             ELSE 'High mileage'
         END AS mileage_category,
-
         COUNT(*) AS number_of_similar_listings,
-        MIN(price_egp) AS minimum_listed_price,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY price_egp) AS q1_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY price_egp) AS q3_listed_price,
-        MAX(price_egp) AS maximum_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY mileage_km) AS median_mileage_km
+        MIN(clean_price_egp) AS minimum_listed_price,
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY clean_price_egp) AS q1_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY clean_price_egp) AS q3_listed_price,
+        MAX(clean_price_egp) AS maximum_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_mileage_km) AS median_mileage_km
     FROM clean.clean_used_car_listings_aug_2025
     WHERE is_analysis_ready = TRUE
-    GROUP BY company, model, manufacturing_year, mileage_category
+    GROUP BY source_company, source_model, clean_manufacturing_year, mileage_category
     HAVING COUNT(*) >= 5
 ),
 similar_car_benchmarks_step2 AS (
@@ -231,9 +243,9 @@ similar_car_benchmarks_step2 AS (
 ),
 similar_car_benchmarks_final AS (
     SELECT
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         minimum_listed_price,
@@ -247,12 +259,29 @@ similar_car_benchmarks_final AS (
     FROM similar_car_benchmarks_step2
 )
 
-SELECT *
+SELECT
+    source_company AS company,
+    source_model AS model,
+    clean_manufacturing_year AS manufacturing_year,
+    mileage_category,
+    number_of_similar_listings,
+
+    /* Cap the lower boundary at the observed minimum price for practical interpretation. */
+    GREATEST(minimum_listed_price, lower_outlier_boundary) AS lower_price_boundary,
+
+    q1_listed_price,
+    median_listed_price,
+    q3_listed_price,
+
+    /* Cap the upper boundary at the observed maximum price for practical interpretation. */
+    LEAST(maximum_listed_price, upper_outlier_boundary) AS upper_price_boundary,
+
+    median_mileage_km
 FROM similar_car_benchmarks_final
 WHERE
-    company = 'Toyota'
-    AND model = 'Corolla'
-    AND manufacturing_year = 2020
+    source_company = 'Nissan'
+    AND source_model = 'Sunny'
+    AND clean_manufacturing_year = 2014
     AND mileage_category = 'Moderate mileage';
 
 
@@ -264,25 +293,24 @@ Q5. Seller pricing guide by urgency and price position
 
 WITH similar_car_benchmarks_step1 AS (
     SELECT
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         CASE
-            WHEN mileage_km < 50000 THEN 'Low mileage'
-            WHEN mileage_km >= 50000 AND mileage_km < 150000 THEN 'Moderate mileage'
+            WHEN clean_mileage_km < 50000 THEN 'Low mileage'
+            WHEN clean_mileage_km >= 50000 AND clean_mileage_km < 150000 THEN 'Moderate mileage'
             ELSE 'High mileage'
         END AS mileage_category,
-
         COUNT(*) AS number_of_similar_listings,
-        MIN(price_egp) AS minimum_listed_price,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY price_egp) AS q1_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_egp) AS median_listed_price,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY price_egp) AS q3_listed_price,
-        MAX(price_egp) AS maximum_listed_price,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY mileage_km) AS median_mileage_km
+        MIN(clean_price_egp) AS minimum_listed_price,
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY clean_price_egp) AS q1_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_price_egp) AS median_listed_price,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY clean_price_egp) AS q3_listed_price,
+        MAX(clean_price_egp) AS maximum_listed_price,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY clean_mileage_km) AS median_mileage_km
     FROM clean.clean_used_car_listings_aug_2025
     WHERE is_analysis_ready = TRUE
-    GROUP BY company, model, manufacturing_year, mileage_category
+    GROUP BY source_company, source_model, clean_manufacturing_year, mileage_category
     HAVING COUNT(*) >= 5
 ),
 similar_car_benchmarks_step2 AS (
@@ -293,9 +321,9 @@ similar_car_benchmarks_step2 AS (
 ),
 similar_car_benchmarks_final AS (
     SELECT
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         minimum_listed_price,
@@ -311,9 +339,9 @@ similar_car_benchmarks_final AS (
 pricing_guide AS (
     SELECT
         1 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Unusually low pricing' AS pricing_position,
@@ -328,9 +356,9 @@ pricing_guide AS (
 
     SELECT
         2 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Aggressive / urgent pricing',
@@ -344,9 +372,9 @@ pricing_guide AS (
 
     SELECT
         3 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Competitive-normal pricing',
@@ -360,9 +388,9 @@ pricing_guide AS (
 
     SELECT
         4 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Typical benchmark pricing',
@@ -376,9 +404,9 @@ pricing_guide AS (
 
     SELECT
         5 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Upper-normal pricing',
@@ -392,9 +420,9 @@ pricing_guide AS (
 
     SELECT
         6 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Premium / patient pricing',
@@ -408,9 +436,9 @@ pricing_guide AS (
 
     SELECT
         7 AS pricing_order,
-        company,
-        model,
-        manufacturing_year,
+        source_company,
+        source_model,
+        clean_manufacturing_year,
         mileage_category,
         number_of_similar_listings,
         'Unusually high pricing',
@@ -423,9 +451,9 @@ pricing_guide AS (
 )
 
 SELECT
-    company,
-    model,
-    manufacturing_year,
+    source_company AS company,
+    source_model AS model,
+    clean_manufacturing_year AS manufacturing_year,
     mileage_category,
     number_of_similar_listings,
     pricing_position,
@@ -435,8 +463,8 @@ SELECT
     buyer_interpretation
 FROM pricing_guide
 WHERE
-    company = 'Nissan'
-    AND model = 'Sunny'
-    AND manufacturing_year = 2013
+    source_company = 'Nissan'
+    AND source_model = 'Sunny'
+    AND clean_manufacturing_year = 2013
     AND mileage_category = 'High mileage'
 ORDER BY pricing_order;

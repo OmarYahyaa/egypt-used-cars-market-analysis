@@ -10,8 +10,8 @@ Schema: clean
 Notes:
 - The clean table keeps one row per raw listing row.
 - raw_listing_id is used as the primary key and traceability link to the raw table.
-- Raw messy values are preserved for traceability.
-- Clean analytical columns are created for analysis.
+- source_* columns preserve the original source values for traceability.
+- clean_* columns store typed and analysis-ready values created from source fields.
 - Quality flags make data quality issues explicit instead of hiding them.
 ===============================================================================
 */
@@ -40,37 +40,37 @@ CREATE TABLE clean.clean_used_car_listings_aug_2025 (
 
     /*
     ---------------------------------------------------------------------------
-    Descriptive / reference columns
+    Source-preserved descriptive columns
     ---------------------------------------------------------------------------
     */
-    title TEXT,
-    company TEXT,
-    model TEXT,
-    color TEXT,
+    source_title TEXT,
+    source_company TEXT,
+    source_model TEXT,
+    source_color TEXT,
 
     /*
     ---------------------------------------------------------------------------
-    Raw messy fields kept for audit
+    Source-preserved messy fields kept for audit
     ---------------------------------------------------------------------------
     */
-    raw_year TEXT,
-    raw_price TEXT,
-    raw_mileage TEXT,
-    raw_location TEXT,
-    raw_features TEXT,
-    raw_transmission TEXT,
-    raw_date_posted TEXT,
+    source_year TEXT,
+    source_price TEXT,
+    source_mileage TEXT,
+    source_location TEXT,
+    source_features TEXT,
+    source_transmission TEXT,
+    source_date_posted TEXT,
 
     /*
     ---------------------------------------------------------------------------
     Clean analytical columns
     ---------------------------------------------------------------------------
     */
-    manufacturing_year SMALLINT,
-    price_egp NUMERIC,
-    mileage_km NUMERIC,
+    clean_manufacturing_year SMALLINT,
+    clean_price_egp NUMERIC,
+    clean_mileage_km NUMERIC,
     clean_location TEXT,
-    date_posted DATE,
+    clean_date_posted DATE,
 
     /*
     ---------------------------------------------------------------------------
