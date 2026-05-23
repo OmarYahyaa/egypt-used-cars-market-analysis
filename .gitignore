@@ -1,14 +1,33 @@
-# Raw local dataset files
+# Raw/local dataset files
+# Keep source data outside Git unless a small sample is intentionally added.
 data/**/*.csv
 data/**/*.zip
+data/**/*.xlsx
+data/**/*.xls
 
-# Local/private visual assets
-/assets/*
-!/assets/
-!/assets/egypt_used_cars_market_analysis_workflow.gif
+# Database exports and backups
+*.backup
+*.dump
+*.sql.gz
+*.bak
 
-# Temporary/system files
+# Environment and local configuration
+.env
+.env.*
+*.local
+
+# Python / notebook temporary files
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Editor / OS files
+.vscode/
+.idea/
 *.tmp
 *.log
 .DS_Store
 Thumbs.db
+
+# Office temporary files
+~$*
